@@ -25,9 +25,10 @@ docker compose up --build
 ```
 
 - UI: http://localhost:8080
-- Endpoints to try:
-  - `curl localhost:8080/api/links/abc` returns 404 JSON (database read)
-  - `curl localhost:8080/api/links/abc/stats` returns clicks from analytics (service-to-service REST)
+- Try it from the command line:
+  - `curl -X POST localhost:8080/api/links -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'` creates a link
+  - `curl -i localhost:8080/<code>` returns a 302 redirect and records a click
+  - `curl localhost:8080/api/links/<code>/stats` returns the click count from analytics (service-to-service REST)
 
 Reset the database: `docker compose down -v`.
 
