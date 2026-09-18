@@ -36,6 +36,17 @@ spec:
             - secretRef:
                 name: postgres-credentials
           env:
+            # for db/init.sh
+            - name: LINKS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shortener-db
+                  key: password
+            - name: ANALYTICS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db
+                  key: password
             # subdirectory, lost+found in the mount root breaks initdb
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata

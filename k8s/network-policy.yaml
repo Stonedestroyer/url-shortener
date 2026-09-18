@@ -1,0 +1,68 @@
+# Deny all ingress, then allow:
+#   anyone -> shortener:8080
+#   shortener -> analytics:8080
+#   shortener, analytics -> postgres:5432
+# Docker Desktop's default CNI doesn't enforce these, k3s does.
+
+# deny all
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: url-shortener
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shortener-from-anywhere
+  namespace: url-shortener
+spec:
+  podSelector:
+    matchLabels:
+      app: shortener
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports:
+        - port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: analytics-from-shortener
+  namespace: url-shortener
+spec:
+  podSelector:
+    matchLabels:
+      app: analytics
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: shortener
+      ports:
+        - port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-from-services
+  namespace: url-shortener
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: shortener
+        - podSelector:
+            matchLabels:
+              app: analytics
+      ports:
+        - port: 5432

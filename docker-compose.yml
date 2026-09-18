@@ -1,22 +1,25 @@
 # Local development only. Kubernetes manifests live in k8s/.
+# Dev passwords only, k8s uses Secrets.
 services:
   postgres:
     image: postgres:17
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: dev-only-password
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: dev-only-admin
+      LINKS_DB_PASSWORD: dev-only-links
+      ANALYTICS_DB_PASSWORD: dev-only-analytics
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./db/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app"]
+      test: ["CMD-SHELL", "pg_isready -U admin"]
       interval: 5s
       retries: 10
 
   analytics:
     build: ./services/analytics
     environment:
-      DATABASE_URL: postgres://app:dev-only-password@postgres:5432/analytics
+      DATABASE_URL: postgres://analytics_app:dev-only-analytics@postgres:5432/analytics
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,7 +29,7 @@ services:
   shortener:
     build: ./services/shortener
     environment:
-      DATABASE_URL: postgres://app:dev-only-password@postgres:5432/links
+      DATABASE_URL: postgres://links_app:dev-only-links@postgres:5432/links
       ANALYTICS_URL: http://analytics:8080
       PUBLIC_BASE_URL: http://localhost:8080
     depends_on:

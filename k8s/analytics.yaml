@@ -19,19 +19,15 @@ spec:
           ports:
             - containerPort: 8080
           env:
-            - name: POSTGRES_USER
+            # analytics_app can only access the analytics db (db/init.sh)
+            # password can't contain @ : / ? (use openssl rand -hex 16)
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
-                  key: POSTGRES_USER
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: POSTGRES_PASSWORD
-            # password can't contain @ : / ?
+                  name: analytics-db
+                  key: password
             - name: DATABASE_URL
-              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/analytics
+              value: postgres://analytics_app:$(DB_PASSWORD)@postgres:5432/analytics
           readinessProbe:
             httpGet:
               path: /readyz
@@ -40,6 +36,12 @@ spec:
             httpGet:
               path: /healthz
               port: 8080
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 50m

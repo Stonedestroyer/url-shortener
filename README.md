@@ -43,14 +43,20 @@ Reset the database: `docker compose down -v`.
    docker push you/url-shortener-analytics:0.1.0
    ```
 
-3. Create the namespace, then the Secret and ConfigMap (kept out of git on purpose):
+3. Create the namespace, then the Secrets and ConfigMap. Secrets are kept out of git on
+   purpose. There are three logins: a Postgres superuser used only to initialise the
+   database, and one login per service that can only reach that service's own database.
 
    ```sh
    kubectl apply -f k8s/namespace.yaml
    kubectl -n url-shortener create secret generic postgres-credentials \
-     --from-literal=POSTGRES_USER=app --from-literal=POSTGRES_PASSWORD=choose-one
-   kubectl -n url-shortener create configmap postgres-init --from-file=db/init.sql
+     --from-literal=POSTGRES_USER=admin --from-literal=POSTGRES_PASSWORD=$(openssl rand -hex 16)
+   kubectl -n url-shortener create secret generic shortener-db --from-literal=password=$(openssl rand -hex 16)
+   kubectl -n url-shortener create secret generic analytics-db --from-literal=password=$(openssl rand -hex 16)
+   kubectl -n url-shortener create configmap postgres-init --from-file=db/init.sh
    ```
+
+   Hex passwords avoid characters such as `@` and `/` that would break the connection strings.
 
 4. Deploy everything: `kubectl apply -f k8s/`
 5. Watch it come up: `kubectl -n url-shortener get pods -w`

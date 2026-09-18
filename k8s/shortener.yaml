@@ -19,18 +19,14 @@ spec:
           ports:
             - containerPort: 8080
           env:
-            - name: POSTGRES_USER
+            # links_app can only access the links db (db/init.sh)
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
-                  key: POSTGRES_USER
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: POSTGRES_PASSWORD
+                  name: shortener-db
+                  key: password
             - name: DATABASE_URL
-              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/links
+              value: postgres://links_app:$(DB_PASSWORD)@postgres:5432/links
             - name: ANALYTICS_URL
               value: http://analytics:8080
             - name: PUBLIC_BASE_URL
@@ -43,6 +39,12 @@ spec:
             httpGet:
               path: /healthz
               port: 8080
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 50m
