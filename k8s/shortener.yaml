@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shortener
+  namespace: url-shortener
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shortener
+  template:
+    metadata:
+      labels:
+        app: shortener
+    spec:
+      containers:
+        - name: shortener
+          image: DOCKERHUB_USERNAME/url-shortener-shortener:0.1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/links
+            - name: ANALYTICS_URL
+              value: http://analytics:8080
+            - name: PUBLIC_BASE_URL
+              value: http://localhost:8080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+---
+# LoadBalancer, shows up on localhost:8080 in Docker Desktop
+apiVersion: v1
+kind: Service
+metadata:
+  name: shortener
+  namespace: url-shortener
+spec:
+  type: LoadBalancer
+  selector:
+    app: shortener
+  ports:
+    - port: 8080
+      targetPort: 8080

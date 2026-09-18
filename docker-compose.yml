@@ -1,0 +1,41 @@
+# Local development only. Kubernetes manifests live in k8s/.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: dev-only-password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 5s
+      retries: 10
+
+  analytics:
+    build: ./services/analytics
+    environment:
+      DATABASE_URL: postgres://app:dev-only-password@postgres:5432/analytics
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
+  shortener:
+    build: ./services/shortener
+    environment:
+      DATABASE_URL: postgres://app:dev-only-password@postgres:5432/links
+      ANALYTICS_URL: http://analytics:8080
+      PUBLIC_BASE_URL: http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      analytics:
+        condition: service_started
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

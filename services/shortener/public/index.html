@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>URL shortener</title>
+</head>
+<body>
+  <h1>Shorten a link</h1>
+  <form id="form">
+    <input id="url" type="url" placeholder="https://example.com" required size="50">
+    <button>Shorten</button>
+  </form>
+  <p id="result"></p>
+  <script>
+    document.getElementById("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const res = await fetch("/api/links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: document.getElementById("url").value }),
+      });
+      const body = await res.json();
+      // textContent to avoid XSS
+      document.getElementById("result").textContent = res.ok ? body.shortUrl : `Error: ${body.error}`;
+    });
+  </script>
+</body>
+</html>
