@@ -6,8 +6,11 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::postgres::{PgPool, PgPoolOptions};
+
+// same limit as the shortener
+const MAX_CODE_LEN: usize = 32;
 
 #[derive(Clone)]
 struct AppState {
@@ -30,6 +33,7 @@ async fn main() {
         .connect_lazy(&database_url)
         .expect("DATABASE_URL is not a valid connection string");
 
+    let state_pool = pool.clone();
     let app = Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .route("/readyz", get(readyz))
@@ -40,7 +44,13 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("analytics listening on {addr}");
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap();
+
+    state_pool.close().await;
+    tracing::info!("analytics stopped");
 }
 
 async fn readyz(State(state): State<AppState>) -> StatusCode {
@@ -68,7 +78,51 @@ async fn stats(
     Ok(Json(Stats { code, clicks }))
 }
 
-// TODO: record click
-async fn record_click() -> StatusCode {
-    StatusCode::NOT_IMPLEMENTED
+#[derive(Deserialize)]
+struct Click {
+    code: String,
+}
+
+// Validate here too instead of trusting the caller.
+fn valid_code(code: &str) -> bool {
+    (1..=MAX_CODE_LEN).contains(&code.len()) && code.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+async fn record_click(State(state): State<AppState>, Json(click): Json<Click>) -> StatusCode {
+    if !valid_code(&click.code) {
+        return StatusCode::BAD_REQUEST;
+    }
+    match sqlx::query("INSERT INTO clicks (code) VALUES ($1)")
+        .bind(&click.code)
+        .execute(&state.pool)
+        .await
+    {
+        Ok(_) => StatusCode::NO_CONTENT,
+        Err(err) => {
+            tracing::error!("failed to record click for {}: {err}", click.code);
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    }
+}
+
+// Finish in-flight requests on SIGTERM.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c().await.ok();
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+    tracing::info!("shutdown signal received, finishing in-flight requests");
 }
