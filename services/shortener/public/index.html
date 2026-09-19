@@ -2,16 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>URL shortener</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 40rem;
+      margin: 4rem auto;
+      padding: 0 1rem;
+      line-height: 1.5;
+    }
+    input, button {
+      font: inherit;
+      padding: 0.4rem 0.6rem;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 0.5rem;
+    }
+    #result {
+      margin-top: 1.5rem;
+      word-break: break-all;
+    }
+    .error {
+      color: #b00;
+    }
+  </style>
 </head>
 <body>
   <h1>Shorten a link</h1>
   <form id="form">
-    <input id="url" type="url" placeholder="https://example.com" required size="50">
+    <input id="url" type="url" placeholder="https://example.com" required autofocus>
     <button>Shorten</button>
   </form>
   <p id="result"></p>
   <script>
+    const result = document.getElementById("result");
+
     document.getElementById("form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const res = await fetch("/api/links", {
@@ -20,8 +48,17 @@
         body: JSON.stringify({ url: document.getElementById("url").value }),
       });
       const body = await res.json();
-      // textContent to avoid XSS
-      document.getElementById("result").textContent = res.ok ? body.shortUrl : `Error: ${body.error}`;
+      result.textContent = "";
+      result.className = res.ok ? "" : "error";
+      if (res.ok) {
+        // href + textContent, never innerHTML, so the response can't inject markup
+        const link = document.createElement("a");
+        link.href = body.shortUrl;
+        link.textContent = body.shortUrl;
+        result.append(link);
+      } else {
+        result.textContent = `Error: ${body.error}`;
+      }
     });
   </script>
 </body>
