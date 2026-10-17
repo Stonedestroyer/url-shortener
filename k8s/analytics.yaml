@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: analytics
-          image: DOCKERHUB_USERNAME/url-shortener-analytics:0.1.0
+          image: alija900/url-shortener-analytics:0.1.1
           ports:
             - containerPort: 8080
           env:

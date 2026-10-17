@@ -97,7 +97,10 @@ async fn record_click(State(state): State<AppState>, Json(click): Json<Click>) -
         .execute(&state.pool)
         .await
     {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            tracing::info!("click recorded for {}", click.code);
+            StatusCode::NO_CONTENT
+        }
         Err(err) => {
             tracing::error!("failed to record click for {}: {err}", click.code);
             StatusCode::INTERNAL_SERVER_ERROR
