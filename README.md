@@ -38,10 +38,10 @@ Reset the database: `docker compose down -v`.
 2. Build and push images (replace `you` with your Docker Hub username, and in `k8s/*.yaml`):
 
    ```sh
-   docker build -t you/url-shortener-shortener:0.1.0 services/shortener
-   docker build -t you/url-shortener-analytics:0.1.0 services/analytics
-   docker push you/url-shortener-shortener:0.1.0
-   docker push you/url-shortener-analytics:0.1.0
+   docker build -t you/url-shortener-shortener:0.1.1 services/shortener
+   docker build -t you/url-shortener-analytics:0.1.1 services/analytics
+   docker push you/url-shortener-shortener:0.1.1
+   docker push you/url-shortener-analytics:0.1.1
    ```
 
 3. Create the namespace, then the Secrets and ConfigMap. Secrets are kept out of git on
