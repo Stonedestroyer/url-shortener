@@ -5,60 +5,215 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>URL shortener</title>
   <style>
+    :root {
+      --text: #1f2328;
+      --muted: #656d76;
+      --border: #d0d7de;
+      --bg: #ffffff;
+      --subtle: #f6f8fa;
+      --accent: #0b5cad;
+      --error: #b42318;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #e6edf3;
+        --muted: #8d96a0;
+        --border: #3d444d;
+        --bg: #0d1117;
+        --subtle: #161b22;
+        --accent: #4493f8;
+        --error: #f47067;
+      }
+    }
+    * { box-sizing: border-box; }
     body {
-      font-family: system-ui, sans-serif;
-      max-width: 40rem;
-      margin: 4rem auto;
-      padding: 0 1rem;
-      line-height: 1.5;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 3rem 1rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin: 0 0 0.25rem;
+    }
+    .intro {
+      color: var(--muted);
+      margin: 0 0 1.5rem;
+    }
+    form {
+      display: flex;
+      gap: 0.5rem;
     }
     input, button {
       font: inherit;
-      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
     }
     input {
-      width: 100%;
-      box-sizing: border-box;
-      margin-bottom: 0.5rem;
+      flex: 1;
+      min-width: 0;
+      background: var(--bg);
+      color: var(--text);
     }
-    #result {
-      margin-top: 1.5rem;
-      word-break: break-all;
+    input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+    button {
+      background: var(--subtle);
+      color: var(--text);
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--muted); }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
     }
     .error {
-      color: #b00;
+      color: var(--error);
+      margin: 0.75rem 0 0;
+    }
+    .error:empty { display: none; }
+    table {
+      width: 100%;
+      margin-top: 2rem;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    th {
+      text-align: left;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding: 0.4rem 0.5rem;
+    }
+    td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem;
+      vertical-align: top;
+    }
+    td.short a {
+      font-family: ui-monospace, Consolas, monospace;
+      color: var(--accent);
+    }
+    td.target {
+      color: var(--muted);
+      word-break: break-all;
+    }
+    th.clicks, td.clicks { text-align: right; }
+    td.actions { white-space: nowrap; text-align: right; }
+    td.actions button {
+      padding: 0.15rem 0.5rem;
+      font-size: 0.85rem;
+    }
+    table[hidden] { display: none; }
+    footer {
+      margin-top: 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
     }
   </style>
 </head>
 <body>
-  <h1>Shorten a link</h1>
-  <form id="form">
-    <input id="url" type="url" placeholder="https://example.com" required autofocus>
-    <button>Shorten</button>
-  </form>
-  <p id="result"></p>
-  <script>
-    const result = document.getElementById("result");
+  <main>
+    <h1>Shorten a link</h1>
+    <p class="intro">Paste a long http or https address and get a short link back.</p>
 
-    document.getElementById("form").addEventListener("submit", async (event) => {
+    <form id="form">
+      <input id="url" type="url" placeholder="https://example.com/a/very/long/address" required autofocus>
+      <button class="primary">Shorten</button>
+    </form>
+    <p id="error" class="error"></p>
+
+    <table id="links" hidden>
+      <thead>
+        <tr><th>Short link</th><th>Goes to</th><th class="clicks">Clicks</th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <footer>Click counts come from the analytics service. Links made here are only listed until you reload the page.</footer>
+  </main>
+
+  <script>
+    const form = document.getElementById("form");
+    const input = document.getElementById("url");
+    const error = document.getElementById("error");
+    const table = document.getElementById("links");
+    const rows = table.querySelector("tbody");
+
+    // Everything below uses textContent and href, never innerHTML, so a response can't inject markup.
+    function cell(className, content) {
+      const td = document.createElement("td");
+      td.className = className;
+      if (content instanceof Node) td.append(content);
+      else td.textContent = content;
+      return td;
+    }
+
+    async function refreshClicks(code, td) {
+      const res = await fetch(`/api/links/${code}/stats`);
+      td.textContent = res.ok ? (await res.json()).clicks : "n/a";
+    }
+
+    function addRow(code, shortUrl, target) {
+      const link = document.createElement("a");
+      link.href = shortUrl;
+      link.target = "_blank";
+      link.textContent = shortUrl.replace(/^https?:\/\//, "");
+
+      const clicks = cell("clicks", "0");
+
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.textContent = "Copy";
+      copy.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(shortUrl);
+        copy.textContent = "Copied";
+        setTimeout(() => (copy.textContent = "Copy"), 1500);
+      });
+
+      const refresh = document.createElement("button");
+      refresh.type = "button";
+      refresh.textContent = "Refresh";
+      refresh.addEventListener("click", () => refreshClicks(code, clicks));
+
+      // Opening the link counts a click, so update the count when the user comes back.
+      link.addEventListener("click", () => setTimeout(() => refreshClicks(code, clicks), 1000));
+
+      const actions = document.createElement("td");
+      actions.className = "actions";
+      actions.append(copy, " ", refresh);
+
+      const tr = document.createElement("tr");
+      tr.append(cell("short", link), cell("target", target), clicks, actions);
+      rows.prepend(tr);
+      table.hidden = false;
+    }
+
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      error.textContent = "";
       const res = await fetch("/api/links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: document.getElementById("url").value }),
+        body: JSON.stringify({ url: input.value }),
       });
       const body = await res.json();
-      result.textContent = "";
-      result.className = res.ok ? "" : "error";
-      if (res.ok) {
-        // href + textContent, never innerHTML, so the response can't inject markup
-        const link = document.createElement("a");
-        link.href = body.shortUrl;
-        link.textContent = body.shortUrl;
-        result.append(link);
-      } else {
-        result.textContent = `Error: ${body.error}`;
+      if (!res.ok) {
+        error.textContent = body.error;
+        return;
       }
+      addRow(body.code, body.shortUrl, input.value);
+      input.value = "";
+      input.focus();
     });
   </script>
 </body>
