@@ -59,6 +59,21 @@ spec:
             exec:
               command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""]
             periodSeconds: 5
+          # runs as the image's postgres user (999), which already owns the data directory.
+          # Root filesystem stays writable, postgres writes its socket to /var/run/postgresql.
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
       volumes:
         - name: init
           configMap:
