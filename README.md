@@ -35,7 +35,10 @@ Reset the database: `docker compose down -v`.
 ## Deploy to Kubernetes
 
 1. Get a cluster. Docker Desktop: Settings, Kubernetes, enable. Or k3s on a home server.
-2. Build and push images (replace `you` with your Docker Hub username, and in `k8s/*.yaml`):
+2. The images are already on Docker Hub (`alija900/url-shortener-shortener:0.1.2` and
+   `alija900/url-shortener-analytics:0.1.1`) and `k8s/*.yaml` uses them, so you can skip to step 3.
+   If you change the code, build and push under your own Docker Hub name (replace `you`) and update
+   the image lines in `k8s/shortener.yaml` and `k8s/analytics.yaml`:
 
    ```sh
    docker build -t you/url-shortener-shortener:0.1.2 services/shortener
@@ -58,9 +61,12 @@ Reset the database: `docker compose down -v`.
    ```
 
    Hex passwords avoid characters such as `@` and `/` that would break the connection strings.
+   Without `openssl` (e.g. Windows PowerShell 5.1), use any random string of letters and digits.
 
-4. Deploy everything: `kubectl apply -f k8s/`
-5. Watch it come up: `kubectl -n url-shortener get pods -w`
+4. Deploy everything: `kubectl apply -f k8s/`. This also starts the optional Cloudflare tunnel;
+   delete `k8s/cloudflared.yaml` first if you don't want it.
+5. Watch it come up: `kubectl -n url-shortener get pods -w`. When all pods are `1/1`, open
+   http://localhost:8080 (on k3s, use the address from `kubectl -n url-shortener get svc shortener`).
 6. Public HTTPS URL (Cloudflare quick tunnel, see `k8s/cloudflared.yaml`):
 
    ```sh
@@ -75,4 +81,8 @@ Reset the database: `docker compose down -v`.
    ```
 
    The URL changes whenever the cloudflared pod restarts, so repeat this step after that.
+   A later `kubectl apply -f k8s/` also resets it to localhost.
    Locally, the app is still available at http://localhost:8080 through the LoadBalancer.
+
+Remove everything: `kubectl delete namespace url-shortener`. This also deletes the persistent
+volume and all links.
