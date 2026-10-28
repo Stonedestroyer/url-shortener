@@ -20,6 +20,7 @@ CREATE TABLE links (
     target_url  TEXT NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX links_created_idx ON links (created_at DESC);
 
 \connect analytics
 SET ROLE analytics_app;
