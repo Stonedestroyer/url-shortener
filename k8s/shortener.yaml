@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: shortener
-          image: alija900/url-shortener-shortener:0.1.2
+          image: alija900/url-shortener-shortener:0.1.3
           ports:
             - containerPort: 8080
           env:

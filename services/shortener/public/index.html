@@ -184,7 +184,21 @@
       tr.append(cell("short", link), cell("target", target), clicks, actions);
       rows.prepend(tr);
       table.hidden = false;
+      return clicks;
     }
+
+    // Links are stored in Postgres, so a reload shows the same table.
+    async function loadLinks() {
+      const res = await fetch("/api/links");
+      if (!res.ok) return;
+      const links = await res.json();
+      // newest first from the API; prepend in reverse so the newest ends up on top
+      for (const link of links.reverse()) {
+        const clicks = addRow(link.code, link.shortUrl, link.target_url);
+        refreshClicks(link.code, clicks);
+      }
+    }
+    loadLinks();
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();

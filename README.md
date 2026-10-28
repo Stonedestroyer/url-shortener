@@ -12,7 +12,7 @@ browser --HTTP--> shortener (TypeScript) --REST--> analytics (Rust)
 
 | Service | Language | Owns | REST API |
 |---|---|---|---|
-| shortener | TypeScript / Express | `links` database, web UI | `POST /api/links`, `GET /api/links/:code`, `GET /api/links/:code/stats`, `GET /:code` |
+| shortener | TypeScript / Express | `links` database, web UI | `POST /api/links`, `GET /api/links`, `GET /api/links/:code`, `GET /api/links/:code/stats`, `GET /:code` |
 | analytics | Rust / axum | `analytics` database | `POST /api/clicks`, `GET /api/stats/{code}` |
 | postgres | (official image) | persistent volume | none |
 
@@ -35,15 +35,15 @@ Reset the database: `docker compose down -v`.
 ## Deploy to Kubernetes
 
 1. Get a cluster. Docker Desktop: Settings, Kubernetes, enable. Or k3s on a home server.
-2. The images are already on Docker Hub (`alija900/url-shortener-shortener:0.1.2` and
+2. The images are already on Docker Hub (`alija900/url-shortener-shortener:0.1.3` and
    `alija900/url-shortener-analytics:0.1.1`) and `k8s/*.yaml` uses them, so you can skip the rest of this step.
    If you change the code, build and push under your own Docker Hub name (replace `you`) and update
    the image lines in `k8s/shortener.yaml` and `k8s/analytics.yaml`:
 
    ```sh
-   docker build -t you/url-shortener-shortener:0.1.2 services/shortener
+   docker build -t you/url-shortener-shortener:0.1.3 services/shortener
    docker build -t you/url-shortener-analytics:0.1.1 services/analytics
-   docker push you/url-shortener-shortener:0.1.2
+   docker push you/url-shortener-shortener:0.1.3
    docker push you/url-shortener-analytics:0.1.1
    ```
 

@@ -29,6 +29,15 @@ app.get("/readyz", async (_req, res) => {
   }
 });
 
+// Most recent links, so the page can show what is stored. There are no accounts, so this is
+// everyone's links; fine for a demo, would need a login in a real service.
+app.get("/api/links", async (_req, res) => {
+  const { rows } = await pool.query(
+    "SELECT code, target_url, created_at FROM links ORDER BY created_at DESC LIMIT 20",
+  );
+  res.json(rows.map((r) => ({ ...r, shortUrl: `${config.publicBaseUrl}/${r.code}` })));
+});
+
 app.get("/api/links/:code", async (req, res) => {
   const { rows } = await pool.query(
     "SELECT code, target_url, created_at FROM links WHERE code = $1",
